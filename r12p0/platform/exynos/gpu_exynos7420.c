@@ -133,9 +133,6 @@ static gpu_attribute gpu_config_attributes[] = {
 	{GPU_CL_DVFS_START_BASE, 266},
 	{GPU_DEBUG_LEVEL, DVFS_WARNING},
 	{GPU_TRACE_LEVEL, TRACE_ALL},
-#ifdef CONFIG_MALI_DVFS_USER
-	{GPU_UDVFS_ENABLE, 1},
-#endif
 };
 
 extern void preload_balance_init(struct kbase_device *kbdev);
@@ -155,13 +152,6 @@ int gpu_dvfs_decide_max_clock(struct exynos_context *platform)
 
 	return 0;
 }
-
-#ifdef CONFIG_MALI_DVFS_USER
-unsigned int gpu_get_config_attr_size(void)
-{
-	return sizeof(gpu_config_attributes);
-}
-#endif
 
 void *gpu_get_config_attributes(void)
 {
@@ -606,11 +596,22 @@ int gpu_disable_dvs(struct exynos_context *platform)
 
 int gpu_regulator_init(struct exynos_context *platform)
 {
+	int gpu_voltage = 0;
 
 	g3d_regulator = regulator_get(NULL, "vdd_g3d");
 	if (IS_ERR(g3d_regulator)) {
 		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "%s: failed to get vdd_g3d regulator, 0x%p\n", __func__, g3d_regulator);
 		g3d_regulator = NULL;
+		return -1;
+	}
+
+	gpu_voltage = get_match_volt(ID_G3D, platform->gpu_dvfs_config_clock*1000);
+
+	if (gpu_voltage == 0)
+		gpu_voltage = platform->gpu_default_vol;
+
+	if (gpu_set_voltage(platform, gpu_voltage) != 0) {
+		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "%s: failed to set voltage [%d]\n", __func__, gpu_voltage);
 		return -1;
 	}
 

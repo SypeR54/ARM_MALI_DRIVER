@@ -164,7 +164,7 @@ static void kbasep_pm_do_poweroff_cores(struct kbase_device *kbdev)
 	kbdev->pm.backend.shader_poweroff_pending = 0;
 
 	if (prev_shader_state != kbdev->pm.backend.desired_shader_state
-		   || kbdev->pm.backend.ca_in_transition) {
+			|| kbdev->pm.backend.ca_in_transition) {
 		bool cores_are_available;
 
 		KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
@@ -463,14 +463,13 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 	if (kbdev->pm.backend.desired_shader_state != desired_bitmap)
 		KBASE_TRACE_ADD(kbdev, PM_CORES_CHANGE_DESIRED, NULL, NULL, 0u,
 							(u32)desired_bitmap);
-
 	/* Are any cores being powered on? */
 	if (~kbdev->pm.backend.desired_shader_state & desired_bitmap ||
 	    kbdev->pm.backend.ca_in_transition) {
 		/* Check if we are powering off any cores before updating shader
 		 * state */
 		if (kbdev->pm.backend.desired_shader_state & ~desired_bitmap) {
-		  	/* Start timer to power off cores */
+			/* Start timer to power off cores */
 			kbdev->pm.backend.shader_poweroff_pending |=
 				(kbdev->pm.backend.desired_shader_state &
 							~desired_bitmap);

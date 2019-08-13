@@ -1358,7 +1358,7 @@ int kbase_alloc_phy_pages_helper(
 	kbase_process_page_usage_inc(alloc->imported.kctx, nr_pages_requested);
 
 	if (kbase_mem_pool_alloc_pages(&alloc->imported.kctx->mem_pool,
-				nr_pages_requested, alloc->pages + old_page_count) != 0)
+			nr_pages_requested, alloc->pages + old_page_count) != 0)
 		goto no_alloc;
 
 	/*

@@ -17,23 +17,8 @@
 
 #include <mali_kbase.h>
 
-#include <linux/of_device.h>
 #include <linux/pm_qos.h>
-#include <linux/pm_domain.h>
-#include <linux/clk.h>
 #include <mach/pm_domains.h>
-#if defined(CONFIG_SOC_EXYNOS8890) && defined(CONFIG_PWRCAL)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-#include <../pwrcal/pwrcal.h>
-#include <../pwrcal/S5E8890/S5E8890-vclk.h>
-#include <mach/pm_domains-cal.h>
-#else
-#include <../../../../../soc/samsung/pwrcal/pwrcal.h>
-#include <../../../../../soc/samsung/pwrcal/S5E8890/S5E8890-vclk.h>
-#include <../../../../../soc/samsung/pwrcal/S5E8890/S5E8890-vclk-internal.h>
-#include <soc/samsung/pm_domains-cal.h>
-#endif /* LINUX_VERSION */
-#endif /* CONFIG_SOC_EXYNOS8890 && CONFIG_PWRCAL */
 
 #include "mali_kbase_platform.h"
 #include "gpu_dvfs_handler.h"
@@ -65,7 +50,6 @@ static struct exynos_pm_domain *gpu_get_pm_domain(void)
 }
 #endif /* CONFIG_MALI_RT_PM */
 
-#ifdef CONFIG_SOC_EXYNOS7420
 int get_cpu_clock_speed(u32 *cpu_clock)
 {
 	struct clk *cpu_clk;
@@ -77,7 +61,6 @@ int get_cpu_clock_speed(u32 *cpu_clock)
 	*cpu_clock = (freq/MHZ);
 	return 0;
 }
-#endif
 
 int gpu_control_set_voltage(struct kbase_device *kbdev, int voltage)
 {

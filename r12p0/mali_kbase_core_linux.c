@@ -85,6 +85,7 @@
 
 #include <mali_kbase_config.h>
 
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 #include <linux/pm_opp.h>
 #else
@@ -1468,11 +1469,11 @@ static int kbase_release(struct inode *inode, struct file *filp)
 			kctx->destroying_context = true;
 		}
 	}
-	filp->private_data = NULL;
 	mutex_unlock(&kbdev->kctx_list_lock);
-
 	if (!found_element)
 		dev_warn(kbdev->dev, "kctx not in kctx_list\n");
+
+	filp->private_data = NULL;
 
 	mutex_lock(&kctx->vinstr_cli_lock);
 	/* If this client was performing hwcnt dumping and did not explicitly

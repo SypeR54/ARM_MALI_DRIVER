@@ -100,7 +100,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 #ifdef CONFIG_KDS
 	INIT_LIST_HEAD(&kctx->waiting_kds_resource);
 #endif
-
 	err = kbase_dma_fence_init(kctx);
 	if (err)
 		goto free_event;

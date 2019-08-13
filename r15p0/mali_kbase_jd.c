@@ -37,7 +37,9 @@
 
 /* MALI_SEC_INTEGRATION */
 #include <linux/exynos_ion.h>
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #include <linux/smc.h>
+#endif
 #include "platform/exynos/gpu_integration_defs.h"
 
 #define beenthere(kctx, f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)

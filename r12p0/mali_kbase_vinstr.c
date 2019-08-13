@@ -461,7 +461,7 @@ static struct kbase_vinstr_client *kbasep_vinstr_attach_client(
 	KBASE_DEBUG_ASSERT(vinstr_ctx);
 
 	if (buffer_count > MAX_BUFFER_COUNT
-		|| (buffer_count & (buffer_count - 1)))
+	    || (buffer_count & (buffer_count - 1)))
 		return NULL;
 
 	cli = kzalloc(sizeof(*cli), GFP_KERNEL);
@@ -1618,6 +1618,7 @@ struct kbase_vinstr_context *kbase_vinstr_init(struct kbase_device *kbdev)
 
 	atomic_set(&vinstr_ctx->request_pending, 0);
 	init_waitqueue_head(&vinstr_ctx->waitq);
+
 	return vinstr_ctx;
 }
 

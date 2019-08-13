@@ -175,6 +175,7 @@ bool kbase_js_choose_affinity(u64 * const affinity,
 	/* Enable core 0 if tiler required */
 	if (core_req & BASE_JD_REQ_T)
 		*affinity = *affinity | 1;
+
 	return true;
 }
 

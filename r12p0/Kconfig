@@ -227,4 +227,11 @@ config MALI_SEC_HWCNT
 	help
 	  Enable sec hwcnt feature.
 
+config MALI_SEC_LEGACY_SUPPORT
+	bool "Enable legacy project support"
+	depends on MALI_T7XX
+	default y
+	help
+	  Enable legacy project support.
+
 source "drivers/gpu/arm/t7xx/r12p0/platform/Kconfig"

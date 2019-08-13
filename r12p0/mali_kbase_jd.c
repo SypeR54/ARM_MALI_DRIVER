@@ -38,7 +38,9 @@
 
 /* MALI_SEC_INTEGRATION */
 #include <linux/exynos_ion.h>
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #include <linux/smc.h>
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 #include "platform/exynos/gpu_integration_defs.h"
 
 #define beenthere(kctx, f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)
@@ -128,7 +130,7 @@ void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 	 */
 	if (IS_GPU_ATOM(katom) ||
 			(!kbase_jd_katom_dep_atom(&katom->dep[0]) &&
-			 !kbase_jd_katom_dep_atom(&katom->dep[1]))) {
+			!kbase_jd_katom_dep_atom(&katom->dep[1]))) {
 		/* katom dep complete, attempt to run it */
 		bool resched = false;
 
@@ -339,8 +341,8 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 
 	KBASE_DEBUG_ASSERT(0 != katom->nr_extres);
 	kds_access_bitmap = kcalloc(BITS_TO_LONGS(katom->nr_extres),
-					sizeof(unsigned long),
-					GFP_KERNEL);
+				    sizeof(unsigned long),
+				    GFP_KERNEL);
 	if (!kds_access_bitmap) {
 		err_ret_val = -ENOMEM;
 		goto early_err_out;
@@ -349,16 +351,16 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 
 #ifdef CONFIG_MALI_DMA_FENCE
 	info.resv_objs = kmalloc_array(katom->nr_extres,
-			sizeof(struct reservation_object *),
-			GFP_KERNEL);
+				       sizeof(struct reservation_object *),
+				       GFP_KERNEL);
 	if (!info.resv_objs) {
 		err_ret_val = -ENOMEM;
 		goto early_err_out;
 	}
 
 	info.dma_fence_excl_bitmap = kcalloc(BITS_TO_LONGS(katom->nr_extres),
-			sizeof(unsigned long),
-			GFP_KERNEL);
+					     sizeof(unsigned long),
+					     GFP_KERNEL);
 	if (!info.dma_fence_excl_bitmap) {
 		err_ret_val = -ENOMEM;
 		goto early_err_out;
@@ -412,7 +414,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 			resv = reg->gpu_alloc->imported.umm.dma_buf->resv;
 			if (resv)
 				kbase_dma_fence_add_reservation(resv, &info,
-						exclusive);
+								exclusive);
 		}
 #endif /* CONFIG_MALI_DMA_FENCE */
 
@@ -529,7 +531,7 @@ failed_kds_setup:
 
 static inline void jd_resolve_dep(struct list_head *out_list,
 					struct kbase_jd_atom *katom,
-                    u8 d, bool ctx_is_dying)
+					u8 d, bool ctx_is_dying)
 {
 	u8 other_d = !d;
 
@@ -540,7 +542,6 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 
 		dep_atom = list_entry(katom->dep_head[d].next,
 				struct kbase_jd_atom, dep_item[d]);
-
 		list_del(katom->dep_head[d].next);
 
 		dep_type = kbase_jd_katom_dep_type(&dep_atom->dep[d]);
@@ -578,9 +579,9 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 			kbase_jd_katom_dep_atom(&dep_atom->dep[other_d]);
 
 		if (!dep_atom->in_jd_list && (!other_dep_atom ||
-					(IS_GPU_ATOM(dep_atom) && !ctx_is_dying &&
-					 !dep_atom->will_fail_event_code &&
-					 !other_dep_atom->will_fail_event_code))) {
+				(IS_GPU_ATOM(dep_atom) && !ctx_is_dying &&
+				!dep_atom->will_fail_event_code &&
+				!other_dep_atom->will_fail_event_code))) {
 			bool dep_satisfied = true;
 #ifdef CONFIG_MALI_DMA_FENCE
 			int dep_count;
@@ -613,6 +614,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 #ifdef CONFIG_KDS
 			dep_satisfied = dep_satisfied && dep_atom->kds_dep_satisfied;
 #endif
+
 			if (dep_satisfied) {
 				dep_atom->in_jd_list = true;
 				list_add_tail(&dep_atom->jd_item, out_list);
@@ -686,11 +688,11 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 			if (IS_GPU_ATOM(dep_atom) && !dep_atom->in_jd_list) {
 				/*Check if atom deps look sane*/
 				bool dep0_valid = !dep_atom->dep[0].atom ||
-					(dep_atom->dep[0].atom->status
-					 >= KBASE_JD_ATOM_STATE_IN_JS);
+						(dep_atom->dep[0].atom->status
+						>= KBASE_JD_ATOM_STATE_IN_JS);
 				bool dep1_valid = !dep_atom->dep[1].atom ||
-					(dep_atom->dep[1].atom->status
-					 >= KBASE_JD_ATOM_STATE_IN_JS);
+						(dep_atom->dep[1].atom->status
+						>= KBASE_JD_ATOM_STATE_IN_JS);
 
 				if (dep0_valid && dep1_valid) {
 					dep_atom->in_jd_list = true;
@@ -759,8 +761,8 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 
 	while (!list_empty(&completed_jobs)) {
 		katom = list_entry(completed_jobs.prev,
-							struct kbase_jd_atom,
-							jd_item);
+		                   struct kbase_jd_atom,
+		                   jd_item);
 		list_del(completed_jobs.prev);
 		KBASE_DEBUG_ASSERT(katom->status == KBASE_JD_ATOM_STATE_COMPLETED);
 
@@ -802,6 +804,7 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 				}
 				node->status = KBASE_JD_ATOM_STATE_COMPLETED;
 			}
+
 			if (node->status == KBASE_JD_ATOM_STATE_COMPLETED) {
 				list_add_tail(&node->jd_item, &completed_jobs);
 			} else if (node->status == KBASE_JD_ATOM_STATE_IN_JS &&

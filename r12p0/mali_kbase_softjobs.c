@@ -57,7 +57,7 @@ void kbasep_add_waiting_soft_job(struct kbase_jd_atom *katom)
 	spin_unlock_irqrestore(&kctx->waiting_soft_jobs_lock, lflags);
 }
 
-static int kbasep_read_soft_event_status(
+int kbasep_read_soft_event_status(
 		struct kbase_context *kctx, u64 evt, unsigned char *status)
 {
 	unsigned char *mapped_evt;
@@ -74,14 +74,14 @@ static int kbasep_read_soft_event_status(
 	return 0;
 }
 
-static int kbasep_write_soft_event_status(
+int kbasep_write_soft_event_status(
 		struct kbase_context *kctx, u64 evt, unsigned char new_status)
 {
 	unsigned char *mapped_evt;
 	struct kbase_vmap_struct map;
 
 	if ((new_status != BASE_JD_SOFT_EVENT_SET) &&
-		(new_status != BASE_JD_SOFT_EVENT_RESET))
+	    (new_status != BASE_JD_SOFT_EVENT_RESET))
 		return -EINVAL;
 
 	mapped_evt = kbase_vmap(kctx, evt, sizeof(*mapped_evt), &map);
@@ -168,9 +168,14 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 static void complete_soft_job(struct kbase_jd_atom *katom)
 {
 	struct kbase_context *kctx = katom->kctx;
+/* MALI_SEC_INTEGRATION */
+	struct list_head *entry = (struct list_head *)&katom->dep_item[0];
 
 	mutex_lock(&kctx->jctx.lock);
-        list_del(&katom->dep_item[0]);
+/* MALI_SEC_INTEGRATION */
+	/* Do not delete from list if item was removed already */
+	if (!(entry->prev == LIST_POISON2 || entry->next == LIST_POISON1))
+		list_del(&katom->dep_item[0]);
 
 	kbase_finish_soft_job(katom);
 	if (jd_done_nolock(katom, NULL))
@@ -467,8 +472,8 @@ static void kbasep_soft_event_update_locked(struct kbase_jd_atom *katom,
  * Return: 0 on success, a negative error code on failure.
  */
 int kbase_soft_event_update(struct kbase_context *kctx,
-		u64 event,
-		unsigned char new_status)
+			     u64 event,
+			     unsigned char new_status)
 {
 	int err = 0;
 
@@ -719,8 +724,8 @@ out_cleanup:
 	/* Frees allocated memory for kbase_debug_copy_job struct, including
 	 * members, and sets jc to 0 */
 	kbase_debug_copy_finish(katom);
-	kfree(user_buffers);
-	
+        kfree(user_buffers);
+
 	return ret;
 }
 
@@ -1305,10 +1310,10 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 		break;
 	case BASE_JD_REQ_SOFT_DEBUG_COPY:
 		return kbase_debug_copy_prepare(katom);
-        case BASE_JD_REQ_SOFT_EXT_RES_MAP:
-                return kbase_ext_res_prepare(katom);
-        case BASE_JD_REQ_SOFT_EXT_RES_UNMAP:
-                return kbase_ext_res_prepare(katom);
+	case BASE_JD_REQ_SOFT_EXT_RES_MAP:
+		return kbase_ext_res_prepare(katom);
+	case BASE_JD_REQ_SOFT_EXT_RES_UNMAP:
+		return kbase_ext_res_prepare(katom);
 	default:
 		/* Unsupported soft-job */
 		return -EINVAL;
@@ -1374,12 +1379,12 @@ void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 	case BASE_JD_REQ_SOFT_JIT_ALLOC:
 		kbase_jit_allocate_finish(katom);
 		break;
-        case BASE_JD_REQ_SOFT_EXT_RES_MAP:
-                kbase_ext_res_finish(katom);
-                break;
-        case BASE_JD_REQ_SOFT_EXT_RES_UNMAP:
-                kbase_ext_res_finish(katom);
-                break;
+	case BASE_JD_REQ_SOFT_EXT_RES_MAP:
+		kbase_ext_res_finish(katom);
+		break;
+	case BASE_JD_REQ_SOFT_EXT_RES_UNMAP:
+		kbase_ext_res_finish(katom);
+		break;
 	}
 }
 

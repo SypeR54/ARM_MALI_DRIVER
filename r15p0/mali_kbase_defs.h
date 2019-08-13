@@ -1008,15 +1008,15 @@ typedef struct sec_sr_resources {
 
 #ifdef CONFIG_MALI_SEC_HWCNT
 typedef struct hwc_resources {
-	u64 arith_words;
-	u64 ls_issues;
-	u64 tex_issues;
-	u64 tripipe_active;
+	u32 arith_words;
+	u32 ls_issues;
+	u32 tex_issues;
+	u32 tripipe_active;
 #ifdef CONFIG_MALI_SEC_HWCNT_VERT
-	u64 gpu_active;
-	u64 js0_active;
-	u64 tiler_active;
-	u64 external_read_bits;
+	u32 gpu_active;
+	u32 js0_active;
+	u32 tiler_active;
+	u32 external_read_bits;
 #endif
 } hwc_resources;
 #endif
@@ -1673,7 +1673,7 @@ static inline bool kbase_device_is_cpu_coherent(struct kbase_device *kbdev)
 }
 
 /* Conversion helpers for setting up high resolution timers */
-#define HR_TIMER_DELAY_MSEC(x) (ns_to_ktime(((u64)(x))*1000000U))
+#define HR_TIMER_DELAY_MSEC(x) (ns_to_ktime((x)*1000000U))
 #define HR_TIMER_DELAY_NSEC(x) (ns_to_ktime(x))
 
 /* Maximum number of loops polling the GPU for a cache flush before we assume it must have completed */

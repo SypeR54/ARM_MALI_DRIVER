@@ -16,7 +16,9 @@
  */
 
 #include <mali_kbase.h>
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #include <mach/apm-exynos.h>
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 #include <mach/asv-exynos.h>
 
 #include "mali_kbase_platform.h"
@@ -24,6 +26,7 @@
 #include "gpu_dvfs_handler.h"
 #include "gpu_dvfs_governor.h"
 
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #define GPU_SET_CLK_VOL(kbdev, prev_clk, clk, vol)			\
 ({			\
 	if (prev_clk < clk) {			\
@@ -36,6 +39,19 @@
 		gpu_control_set_voltage(kbdev, vol);			\
 	}			\
 })
+#else
+#define GPU_SET_CLK_VOL(kbdev, prev_clk, clk, vol)			\
+({			\
+	if (prev_clk < clk) {			\
+		gpu_control_set_voltage(kbdev, vol);			\
+		gpu_control_set_clock(kbdev, clk);			\
+	} else {			\
+		gpu_control_set_clock(kbdev, clk);			\
+		gpu_control_set_voltage(kbdev, vol);			\
+	}			\
+})
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
+
 
 extern struct kbase_device *pkbdev;
 
@@ -517,22 +533,23 @@ int gpu_dvfs_get_level(int clock)
 	return -1;
 }
 
-int gpu_dvfs_get_level_clock(int clock)
+int gpu_dvfs_get_stock_level(int clock)
 {
-	struct kbase_device *kbdev = pkbdev;
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-	int i, min, max;
+        struct kbase_device *kbdev = pkbdev;
+        struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
+        int i;
 
-	DVFS_ASSERT(platform);
+        DVFS_ASSERT(platform);
 
-	min = gpu_dvfs_get_level(platform->gpu_min_clock);
-	max = gpu_dvfs_get_level(platform->gpu_max_clock);
+        if ((clock < platform->gpu_min_clock_limit) || (clock > platform->gpu_max_clock_limit))
+                return -1;
 
-	for (i = max; i <= min; i++)
-		if (clock - (int)(platform->table[i].clock) >= 0)
-			return platform->table[i].clock;
+        for (i = 0; i < platform->table_size; i++) {
+                if (platform->table[i].clock == clock)
+                        return i;
+        }
 
-	return -1;
+        return -1;
 }
 
 int gpu_dvfs_get_voltage(int clock)

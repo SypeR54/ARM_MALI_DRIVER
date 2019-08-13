@@ -18,7 +18,11 @@
 
 #include <linux/suspend.h>
 #include <linux/pm_runtime.h>
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #include <mach/apm-exynos.h>
+#else
+#include <mach/asv-exynos5_cal.h>
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 #include <mach/asv-exynos.h>
 
 #include "mali_kbase_platform.h"
@@ -155,6 +159,7 @@ static int gpu_pm_notifier(struct notifier_block *nb, unsigned long event, void 
 	return err;
 }
 
+#ifdef CONFIG_EXYNOS_NOC_DEBUGGING
 static int gpu_noc_notifier(struct notifier_block *nb, unsigned long event, void *cmd)
 {
 	if (strstr((char *)cmd, "G3D")) {
@@ -163,6 +168,7 @@ static int gpu_noc_notifier(struct notifier_block *nb, unsigned long event, void
 	}
 	return 0;
 }
+#endif /* CONFIG_EXYNOS_NOC_DEBUGGING */
 
 static int gpu_power_on(struct kbase_device *kbdev)
 {
@@ -224,9 +230,11 @@ static struct notifier_block gpu_pm_nb = {
 	.notifier_call = gpu_pm_notifier
 };
 
+#ifdef CONFIG_EXYNOS_NOC_DEBUGGING
 static struct notifier_block gpu_noc_nb = {
 	.notifier_call = gpu_noc_notifier
 };
+#endif /* CONFIG_EXYNOS_NOC_DEBUGGING */
 
 static int gpu_device_runtime_init(struct kbase_device *kbdev)
 {
@@ -261,12 +269,17 @@ static int pm_callback_change_dvfs_level(struct kbase_device *kbdev)
 
 	if(kbdev->vendor_callbacks->get_poweron_dbg)
 		enabledebug = kbdev->vendor_callbacks->get_poweron_dbg();
-#if 0
+
 	if (enabledebug)
+#ifndef MALI_SEC_LEGACY_SUPPORT
 		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "asv table[%u] clk[%d to %d]MHz, vol[%d (margin : %d) real: %d]mV\n",
 				exynos_get_table_ver(), gpu_get_cur_clock(platform), platform->gpu_dvfs_start_clock,
 				gpu_get_cur_voltage(platform), platform->voltage_margin, platform->cur_voltage);
-#endif
+#else
+		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "asv table[%u] clk[%d to %d]MHz, vol[%d (margin : %d) real: %d]mV\n",
+				cal_get_table_ver(), gpu_get_cur_clock(platform), platform->gpu_dvfs_start_clock,
+				gpu_get_cur_voltage(platform), platform->voltage_margin, platform->cur_voltage);
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 	gpu_set_target_clk_vol(platform->gpu_dvfs_start_clock, false);
 	gpu_dvfs_reset_env_data(kbdev);
 #endif

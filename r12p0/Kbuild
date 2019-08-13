@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r12p1-03dev0"
+MALI_RELEASE_NAME ?= "r12p1-02dev0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -72,7 +72,8 @@ DEFINES = \
 	-DMALI_SEC_UTILIZATION \
 	-DKBASE_FENCE_TIMEOUT_FAKE_SIGNAL \
 	-DMALI_SEC_ASP_SECURE_RENDERING=$(MALI_SUPPORT_ASP_SECURE) \
-	-DMALI_SEC_ASP_SECURE_BUF_CTRL=$(MALI_SUPPORT_ASP_SECURE_BUF_CTRL)
+	-DMALI_SEC_ASP_SECURE_BUF_CTRL=$(MALI_SUPPORT_ASP_SECURE_BUF_CTRL) \
+	-DMALI_SEC_LEGACY_SUPPORT
 
 ifeq ($(CONFIG_MALI_GATOR_SUPPORT_TIMELINE),y)
 DEFINES +=-DCONFIG_MALI_GATOR_SUPPORT
@@ -145,6 +146,7 @@ endif
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 	SRC += mali_kbase_regs_dump_debugfs.c
 endif
+
 
 # Job Scheduler Policy: Completely Fair Scheduler
 SRC += mali_kbase_js_policy_cfs.c

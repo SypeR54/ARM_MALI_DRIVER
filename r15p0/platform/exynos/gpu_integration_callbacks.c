@@ -59,8 +59,13 @@ extern int set_hmp_boost(int enable);
 #endif
 
 #ifdef CONFIG_USE_VSYNC_SKIP
+#ifdef MALI_SEC_LEGACY_SUPPORT
+void s3c_fb_extra_vsync_wait_set(int);
+void s3c_fb_extra_vsync_wait_add(int);
+#else
 void decon_extra_vsync_wait_set(int);
 void decon_extra_vsync_wait_add(int);
+#endif /* MALI_SEC_LEGACY_SUPPORT */
 #endif
 
 #ifdef MALI_SEC_SEPERATED_UTILIZATION
@@ -93,9 +98,20 @@ void gpu_create_context(void *ctx)
 {
 	struct kbase_context *kctx;
 	char current_name[sizeof(current->comm)];
+#ifdef CONFIG_MALI_SEC_HWCNT
+	struct kbase_device *kbdev;
+#endif
 
 	kctx = (struct kbase_context *)ctx;
 	KBASE_DEBUG_ASSERT(kctx != NULL);
+
+#ifdef CONFIG_MALI_SEC_HWCNT
+	kbdev = kctx->kbdev;
+	if (kbdev != NULL) {
+		struct exynos_context *platform_context = kbdev->platform_context;
+		platform_context->hwcnt_threshold = 4100;
+	}
+#endif
 
 	kctx->ctx_status = CTX_UNINITIALIZED;
 	kctx->ctx_need_qos = false;
@@ -151,38 +167,14 @@ void gpu_destroy_context(void *ctx)
 
 	if (kctx->ctx_need_qos)
 	{
-#ifdef CONFIG_SCHED_HMP
-		int i, policy_count;
-		const struct kbase_pm_policy *const *policy_list;
-		struct exynos_context *platform;
-		platform = (struct exynos_context *) kbdev->platform_context;
-#endif
 #ifdef CONFIG_MALI_DVFS
 		gpu_dvfs_boost_lock(GPU_DVFS_BOOST_UNSET);
 #endif
 #ifdef CONFIG_SCHED_HMP
-		/* set policy back */
-		policy_count = kbase_pm_list_policies(&policy_list);
-		if (platform->cur_policy){
-			for (i = 0; i < policy_count; i++) {
-				if (sysfs_streq(policy_list[i]->name, platform->cur_policy->name)) {
-					kbase_pm_set_policy(kbdev, policy_list[i]);
-					break;
-				}
-			}
-		}
-		else{
-			for (i = 0; i < policy_count; i++) {
-				if (sysfs_streq(policy_list[i]->name, "coarse_demand")) {
-					kbase_pm_set_policy(kbdev, policy_list[i]);
-					break;
-				}
-			}
-		}
 		set_hmp_boost(0);
 		set_hmp_aggressive_up_migration(false);
 		set_hmp_aggressive_yield(false);
-#endif /* CONFIG_SCHED_HMP */
+#endif
 	}
 }
 
@@ -232,10 +224,18 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, void * const args, u32 args_
 					t_index = i;
 
 			if (t_index < tskip->num_ratiometer) {
+#ifdef MALI_SEC_LEGACY_SUPPORT
+				s3c_fb_extra_vsync_wait_add(tskip->skip_count[t_index]);
+#else
 				decon_extra_vsync_wait_add(tskip->skip_count[t_index]);
+#endif /* MALI_SEC_LEGACY_SUPPORT */
 				ukh->ret = MALI_ERROR_NONE;
 			} else {
+#ifdef MALI_SEC_LEGACY_SUPPORT
+				s3c_fb_extra_vsync_wait_set(0);
+#else
 				decon_extra_vsync_wait_set(0);
+#endif /* MALI_SEC_LEGACY_SUPPORT */
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			}
 
@@ -260,26 +260,13 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, void * const args, u32 args_
 	case KBASE_FUNC_SET_MIN_LOCK :
 		{
 #ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_SEC_HWCNT
 			struct kbase_uk_custom_command *kgp = (struct kbase_uk_custom_command *)args;
-#endif /* CONFIG_MALI_DVFS */
-#ifdef CONFIG_SCHED_HMP
-			int i, policy_count;
-			const struct kbase_pm_policy *const *policy_list;
-			struct exynos_context *platform;
-			platform = (struct exynos_context *) kbdev->platform_context;
 #endif
+#endif /* CONFIG_MALI_DVFS */
 			if (!kctx->ctx_need_qos) {
 				kctx->ctx_need_qos = true;
 #ifdef CONFIG_SCHED_HMP
-				/* set policy to always_on */
-				policy_count = kbase_pm_list_policies(&policy_list);
-				platform->cur_policy = kbase_pm_get_policy(kbdev);
-				for (i = 0; i < policy_count; i++) {
-					if (sysfs_streq(policy_list[i]->name, "always_on")) {
-						kbase_pm_set_policy(kbdev, policy_list[i]);
-						break;
-					}
-				}
 				/* set hmp boost */
 				set_hmp_boost(1);
 				set_hmp_aggressive_up_migration(true);
@@ -287,12 +274,15 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, void * const args, u32 args_
 #endif /* CONFIG_SCHED_HMP */
 			}
 #ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_SEC_HWCNT
 			if (kgp->padding) {
-				platform->boost_egl_min_lock = kgp->padding;
-				gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_EGL_SET);
-			} else {
-				gpu_dvfs_boost_lock(GPU_DVFS_BOOST_SET);
+				struct exynos_context *platform;
+				platform = (struct exynos_context *) kbdev->platform_context;
+				/* dev_err(kctx->kbdev->dev, "HW counter threshold is changed %d->%d\n", platform->hwcnt_threshold, kgp->padding); */
+				platform->hwcnt_threshold = kgp->padding;
 			}
+#endif
+			gpu_dvfs_boost_lock(GPU_DVFS_BOOST_SET);
 #endif /* CONFIG_MALI_DVFS */
 			break;
 		}
@@ -300,42 +290,30 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, void * const args, u32 args_
 	case KBASE_FUNC_UNSET_MIN_LOCK :
 		{
 #ifdef CONFIG_MALI_DVFS
-			struct kbase_uk_custom_command *kgp = (struct kbase_uk_custom_command*)args;
+#ifdef CONFIG_MALI_SEC_HWCNT
+			struct kbase_uk_custom_command *kgp = (struct kbase_uk_custom_command *)args;
+#endif
 #endif /* CONFIG_MALI_DVFS */
-#ifdef CONFIG_SCHED_HMP
-			int i, policy_count;
-			const struct kbase_pm_policy *const *policy_list;
-			struct exynos_context *platform;
-			platform = (struct exynos_context *) kbdev->platform_context;
-#endif /* CONFIG_SCHED_HMP */
 			if (kctx->ctx_need_qos) {
 				kctx->ctx_need_qos = false;
 #ifdef CONFIG_SCHED_HMP
-				/* set policy back */
-				if (platform->cur_policy) {
-					policy_count = kbase_pm_list_policies(&policy_list);
-					for (i = 0; i < policy_count; i++) {
-						if (sysfs_streq(policy_list[i]->name, platform->cur_policy->name)) {
-							kbase_pm_set_policy(kbdev, policy_list[i]);
-							break;
-						}
-					}
-					platform->cur_policy = NULL;
-				}
 				/* unset hmp boost */
 				set_hmp_boost(0);
 				set_hmp_aggressive_up_migration(false);
 				set_hmp_aggressive_yield(false);
 #endif /* CONFIG_SCHED_HMP */
-#ifdef CONFIG_MALI_DVFS
-				if (kgp->padding) {
-					platform->boost_egl_min_lock = 0;
-					gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_EGL_RESET);
-				} else {
-					gpu_dvfs_boost_lock(GPU_DVFS_BOOST_UNSET);
-				}
-#endif /* CONFIG_MALI_DVFS */
 			}
+#ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_SEC_HWCNT
+			if (kgp->padding) {
+				struct exynos_context *platform;
+				platform = (struct exynos_context *) kbdev->platform_context;
+				/* dev_err(kctx->kbdev->dev, "HW counter threshold is changed %d->%d\n", platform->hwcnt_threshold, kgp->padding); */
+				platform->hwcnt_threshold = kgp->padding;
+			}
+#endif
+			gpu_dvfs_boost_lock(GPU_DVFS_BOOST_UNSET);
+#endif /* CONFIG_MALI_DVFS */
 			break;
 		}
 
@@ -448,9 +426,17 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, void * const args, u32 args_
 			KBASE_TRACE_ADD_EXYNOS(kbdev, LSI_HWCNT_VSYNC_SKIP, NULL, NULL, 0u, vskip->skip_count);
 
 			if (vskip->skip_count == 0) {
+#ifdef MALI_SEC_LEGACY_SUPPORT
+				s3c_fb_extra_vsync_wait_set(0);
+#else
 				decon_extra_vsync_wait_set(0);
+#endif
 			} else {
+#ifdef MALI_SEC_LEGACY_SUPPORT
+				s3c_fb_extra_vsync_wait_add(vskip->skip_count);
+#else
 				decon_extra_vsync_wait_add(vskip->skip_count);
+#endif
 			}
 #endif /* CONFIG_USE_VSYNC_SKIP */
 			break;
@@ -609,6 +595,7 @@ void kbase_mem_free_list_cleanup(struct kbase_context *kctx)
 
 #define KBASE_MMU_PAGE_ENTRIES	512
 
+#ifndef MALI_SEC_LEGACY_SUPPORT
 static phys_addr_t mmu_pte_to_phy_addr(u64 entry)
 {
 	if (!(entry & 1))
@@ -635,7 +622,7 @@ static void gpu_page_table_info_dp_level(struct kbase_context *kctx, u64 vaddr, 
 
 	pgd_page = kmap(pfn_to_page(PFN_DOWN(pgd)));
 
-	dev_err(kctx->kbdev->dev, "Dumping level %d @ physical address 0x%016llX (matching index %d):\n", level, pgd, index);
+	dev_err(kctx->kbdev->dev, "Dumping level %d @ physical address 0x%016X (matching index %d):\n", level, pgd, index);
 
 	if (!pgd_page) {
 		dev_err(kctx->kbdev->dev, "kmap failure\n");
@@ -674,6 +661,7 @@ void gpu_debug_pagetable_info(void *ctx, u64 vaddr)
 	dev_err(kctx->kbdev->dev, "Looking up virtual GPU address: 0x%016llX\n", vaddr);
 	gpu_page_table_info_dp_level(kctx, vaddr, kctx->pgd, 0);
 }
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 
 #ifdef CONFIG_MALI_SEC_CL_BOOST
 void gpu_cl_boost_init(void *dev)
@@ -1165,7 +1153,9 @@ struct kbase_vendor_callbacks exynos_callbacks = {
 #endif
 	.set_poweron_dbg = gpu_set_poweron_dbg,
 	.get_poweron_dbg = gpu_get_poweron_dbg,
+#ifndef MALI_SEC_LEGACY_SUPPORT
 	.debug_pagetable_info = gpu_debug_pagetable_info,
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 	.mem_profile_check_kctx = gpu_mem_profile_check_kctx,
 #ifdef MALI_SEC_SEPERATED_UTILIZATION
 	.pm_record_state = gpu_pm_record_state,

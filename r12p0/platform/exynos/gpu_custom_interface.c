@@ -27,7 +27,6 @@
 #include "gpu_ipa.h"
 #endif /* CONFIG_CPU_THERMAL_IPA */
 #include "gpu_custom_interface.h"
-#include <mach/apm-exynos.h>
 #include <mach/asv-exynos.h>
 
 extern struct kbase_device *pkbdev;
@@ -1391,7 +1390,7 @@ static ssize_t show_hwcnt_tripipe(struct device *dev, struct device_attribute *a
 	if (!platform)
 		return -ENODEV;
 
-	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d : (active, arith, ls, tex) = (%llu, %llu, %llu, %llu)",
+	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d : (active, arith, ls, tex) = (%u, %u, %u, %u)",
 			platform->hwcnt_gathering_status, kbdev->hwcnt.resources_log.tripipe_active, kbdev->hwcnt.resources_log.arith_words, kbdev->hwcnt.resources_log.ls_issues, kbdev->hwcnt.resources_log.tex_issues);
 
 	if (ret < PAGE_SIZE - 1) {

@@ -24,7 +24,7 @@
 #include "gpu_dvfs_governor.h"
 #include "gpu_control.h"
 
-// MALI_SEC_SECURE_RENDERING_ASP
+#ifndef MALI_SEC_LEGACY_SUPPORT
 #if MALI_SEC_ASP_SECURE_BUF_CTRL && !MALI_SEC_ASP_SECURE_RENDERING
 #error YOU MUST check definition for Secure Rendering!!
 #endif
@@ -40,6 +40,7 @@ extern struct ion_device *ion_exynos;
 #define PROT_G3D        0xC
 #define SMC_TZPC_OK     0x2
 #endif
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 
 struct kbase_device *pkbdev;
 static int gpu_debug_level;
@@ -299,6 +300,9 @@ static int gpu_validate_attrib_data(struct exynos_context *platform)
 	platform->hwcnt_choose_l3_cache = data == 0 ? 0 : (u32) data;
 	data = gpu_get_attrib_data(attrib, GPU_HWCNT_CHOOSE_MMU_L2);
 	platform->hwcnt_choose_mmu_l2 = data == 0 ? 0 : (u32) data;
+
+	data = gpu_get_attrib_data(attrib, GPU_HWCNT_THRESHOLD);
+	platform->hwcnt_threshold = data == 0 ? 0 : (u32) data;
 #endif
 
 	data = gpu_get_attrib_data(attrib, GPU_RUNTIME_PM_DELAY_TIME);
@@ -426,6 +430,7 @@ struct kbase_platform_funcs_conf platform_funcs = {
 	.platform_term_func = &kbase_platform_exynos5_term,
 };
 
+#ifndef MALI_SEC_LEGACY_SUPPORT
 /* MALI_SEC_SECURE_RENDERING */
 static int exynos_secure_mode_enable(struct kbase_device *kbdev)
 {
@@ -674,6 +679,7 @@ struct kbase_secure_ops exynos_secure_ops = {
 	.secure_mem_enable   = exynos_secure_mem_enable,
 	.secure_mem_disable  = exynos_secure_mem_disable,
 };
+#endif /* !MALI_SEC_LEGACY_SUPPORT */
 
 int kbase_platform_early_init(void)
 {

@@ -322,10 +322,11 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 #endif
 /* SRUK-MALI_SYSTRACE_SUPPORT }*/
 					kbase_tlstream_aux_job_softstop(i);
-				        kbasep_trace_tl_nret_atom_lpu(
-                                                        kbdev, i);
 
-                                        /* Soft-stopped job - read the value of
+					kbasep_trace_tl_nret_atom_lpu(
+						kbdev, i);
+
+					/* Soft-stopped job - read the value of
 					 * JS<n>_TAIL so that the job chain can
 					 * be resumed */
 					job_tail = (u64)kbase_reg_read(kbdev,
@@ -1317,11 +1318,21 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 	 * debugging of GPU resets */
 	kbase_debug_dump_registers(kbdev);
 
+	/* MALI_SEC_INTEGRATION */
+	if(kbdev->vendor_callbacks->register_dump)
+		kbdev->vendor_callbacks->register_dump();
+	KBASE_TRACE_DUMP(kbdev);
+
 	bckp_state = kbdev->hwcnt.backend.state;
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_RESETTING;
 	kbdev->hwcnt.backend.triggered = 0;
 
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+
+	/* MALI_SEC_INTEGRATION */
+	/* while the GPU initialization, vendor desired gpu log will be out by set_power_dbg(TRUE) calls */
+	if(kbdev->vendor_callbacks->set_poweron_dbg)
+		kbdev->vendor_callbacks->set_poweron_dbg(true);
 
 	/* Reset the GPU */
 	kbase_pm_init_hw(kbdev, 0);
@@ -1461,6 +1472,10 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 		break;
 	}
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+
+	/* MALI_SEC_INTEGRATION */
+	if(kbdev->vendor_callbacks->update_status)
+		kbdev->vendor_callbacks->update_status(kbdev, "reset_count", 0);
 
 	/* Resume the vinstr core */
 	kbase_vinstr_hwc_resume(kbdev->vinstr_ctx);
